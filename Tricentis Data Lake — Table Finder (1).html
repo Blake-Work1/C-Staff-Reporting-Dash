@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tricentis Data Lake — Table Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#050a1a; --navy2:#0a1228; --card:#0d1630; --card2:#111d3a;
+  --b1:rgba(255,255,255,0.06); --b2:rgba(255,255,255,0.12);
+  --blue:#2563ff; --cyan:#00d4ff; --green:#10b981; --red:#ef4444;
+  --amber:#f59e0b; --purple:#8b5cf6;
+  --tx:#f0f2f8; --tx2:#94a3b8; --tx3:#64748b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--tx);font-size:14px;line-height:1.6;min-height:100vh}
+body::before{content:'';position:fixed;top:-20%;left:-10%;width:60%;height:60%;background:radial-gradient(ellipse,rgba(37,99,255,0.1) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+.topbar{background:rgba(5,10,26,0.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--b1);padding:0 36px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-mark{width:28px;height:28px;background:var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px}
+.logo-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:var(--tx)}
+.logo-name span{color:var(--tx3);font-weight:400}
+.badge{font-size:10px;color:var(--tx3);border:1px solid var(--b2);padding:3px 10px;border-radius:20px}
+
+main{max-width:1100px;margin:0 auto;padding:32px 36px 80px;position:relative;z-index:1}
+
+/* SEARCH AREA */
+.search-card{background:var(--card);border:1px solid var(--b2);border-radius:16px;padding:28px 32px;margin-bottom:24px;position:relative;overflow:hidden}
+.search-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue),var(--cyan))}
+.search-eyebrow{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);margin-bottom:6px;font-weight:500}
+.search-title{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600;color:var(--tx);margin-bottom:4px}
+.search-sub{font-size:12px;color:var(--tx3);margin-bottom:20px}
+.search-box{display:flex;gap:10px;margin-bottom:14px}
+.search-input{flex:1;background:var(--navy2);border:1px solid var(--b2);border-radius:8px;padding:11px 16px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);outline:none;transition:border-color .18s}
+.search-input:focus{border-color:rgba(37,99,255,0.6)}
+.search-input::placeholder{color:var(--tx3)}
+.search-btn{background:var(--blue);color:#fff;border:none;padding:11px 22px;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background .18s;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.search-btn:hover{background:#1d4ed8}
+.search-btn svg{width:13px;height:13px}
+.search-btn.loading svg{animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.quick-tags{display:flex;gap:8px;flex-wrap:wrap}
+.qtag{font-size:11px;padding:4px 12px;border:1px solid var(--b2);border-radius:20px;color:var(--tx3);cursor:pointer;background:transparent;font-family:'Inter',sans-serif;transition:all .15s}
+.qtag:hover{color:var(--tx2);border-color:rgba(37,99,255,0.4);background:rgba(37,99,255,0.08)}
+
+/* RESULTS */
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.results-title{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:var(--tx)}
+.results-count{font-size:11px;color:var(--tx3)}
+.results-grid{display:flex;flex-direction:column;gap:10px}
+.result-card{background:var(--card);border:1px solid var(--b1);border-radius:12px;overflow:hidden;transition:border-color .18s}
+.result-card:hover{border-color:var(--b2)}
+.result-card.primary{border-color:rgba(37,99,255,0.4)}
+.result-card.secondary{border-color:rgba(16,185,129,0.3)}
+.result-card.reference{border-color:var(--b1)}
+.rc-head{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer}
+.rc-priority{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.primary .rc-priority{background:rgba(37,99,255,0.25);color:var(--cyan)}
+.secondary .rc-priority{background:rgba(16,185,129,0.2);color:var(--green)}
+.reference .rc-priority{background:var(--b2);color:var(--tx3)}
+.rc-table{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:var(--tx);flex:1}
+.rc-schema{font-size:10px;color:var(--tx3);font-family:'JetBrains Mono',monospace}
+.rc-tags{display:flex;gap:6px;margin-left:auto}
+.rc-tag{font-size:9px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap}
+.tag-arr{background:rgba(37,99,255,0.2);color:#93c5fd}
+.tag-acv{background:rgba(0,212,255,0.15);color:#67e8f9}
+.tag-grr{background:rgba(16,185,129,0.15);color:#6ee7b7}
+.tag-sfdc{background:rgba(245,158,11,0.15);color:#fcd34d}
+.tag-hc{background:rgba(139,92,246,0.15);color:#c4b5fd}
+.tag-finance{background:rgba(239,68,68,0.15);color:#fca5a5}
+.tag-lookup{background:var(--b2);color:var(--tx3)}
+.rc-body{padding:0 18px 16px;border-top:1px solid var(--b1);display:none}
+.rc-body.open{display:block;padding-top:14px}
+.rc-desc{font-size:12px;color:var(--tx2);line-height:1.7;margin-bottom:12px}
+.rc-fields{margin-bottom:12px}
+.rc-fields-title{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);font-weight:500;margin-bottom:7px}
+.field-chips{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--navy2);border:0.5px solid var(--b2);border-radius:4px;padding:2px 8px;color:var(--tx2)}
+.fchip.key{border-color:rgba(37,99,255,0.4);color:var(--blue-lt, #93c5fd)}
+.rc-sql{background:var(--navy2);border-radius:8px;padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#a5f3fc;line-height:1.7;position:relative}
+.rc-sql-title{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);font-weight:500;margin-bottom:8px}
+.copy-btn{position:absolute;top:10px;right:10px;background:var(--b2);border:none;border-radius:4px;padding:3px 8px;font-size:10px;color:var(--tx3);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.copy-btn:hover{background:rgba(37,99,255,0.3);color:var(--cyan)}
+.rc-note{font-size:11px;color:var(--amber);margin-top:10px;line-height:1.6}
+.rc-note b{font-weight:500}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:48px 24px;color:var(--tx3)}
+.empty-icon{font-size:32px;margin-bottom:12px;opacity:.5}
+.empty-title{font-size:14px;font-weight:500;color:var(--tx2);margin-bottom:6px}
+.empty-sub{font-size:12px;line-height:1.65}
+
+/* SCHEMA BROWSER */
+.browser-toggle{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--b2);border-radius:8px;padding:8px 16px;color:var(--tx3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;margin-bottom:16px;transition:all .15s}
+.browser-toggle:hover{border-color:rgba(37,99,255,0.4);color:var(--tx2)}
+.schema-browser{background:var(--card);border:1px solid var(--b1);border-radius:12px;padding:20px;margin-bottom:24px;display:none}
+.schema-browser.open{display:block}
+.schema-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;max-height:400px;overflow-y:auto}
+.schema-group{background:var(--navy2);border-radius:8px;padding:10px 12px}
+.sg-name{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--cyan);margin-bottom:6px}
+.sg-table{font-size:10px;color:var(--tx3);padding:2px 0;cursor:pointer;transition:color .12s;font-family:'JetBrains Mono',monospace}
+.sg-table:hover{color:var(--tx2)}
+.sg-count{font-size:9px;color:var(--tx3);margin-top:4px;border-top:0.5px solid var(--b1);padding-top:4px}
+
+footer{border-top:1px solid var(--b1);padding:16px 36px;font-size:10px;color:var(--tx3);display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">T</div>
+    <div class="logo-name">Tricentis <span>· Data Lake Table Finder</span></div>
+  </div>
+  <div class="badge">Azure SQL · 350+ tables</div>
+</div>
+
+<main>
+
+  <div class="search-card">
+    <div class="search-eyebrow">Intelligent table discovery</div>
+    <div class="search-title">What data do you need?</div>
+    <div class="search-sub">Describe your project, metric, or use case in plain English — or use the quick tags below</div>
+    <div class="search-box">
+      <input class="search-input" id="searchInput" placeholder="e.g. ACV bookings by geo and product for Q1 2026..." autocomplete="off" onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="search-btn" id="searchBtn" onclick="doSearch()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+        Find tables
+      </button>
+    </div>
+    <div class="quick-tags">
+      <button class="qtag" onclick="quickSearch('ACV bookings by geo product and source')">ACV Bookings</button>
+      <button class="qtag" onclick="quickSearch('ARR balance live and committed by product family')">ARR Balances</button>
+      <button class="qtag" onclick="quickSearch('GRR NRR customer retention UCID level')">GRR / NRR</button>
+      <button class="qtag" onclick="quickSearch('customer count by tier and geo')">Customer Metrics</button>
+      <button class="qtag" onclick="quickSearch('headcount employees by department')">Headcount</button>
+      <button class="qtag" onclick="quickSearch('sales marketing expense spend')">S&M Spend</button>
+      <button class="qtag" onclick="quickSearch('product mapping FX rates lookups')">Lookups & Mappings</button>
+      <button class="qtag" onclick="quickSearch('renewals ATR available to renew pipeline')">Renewals</button>
+      <button class="qtag" onclick="quickSearch('opportunity pipeline closed won salesforce')">Opportunities</button>
+      <button class="qtag" onclick="quickSearch('product usage NeoLoad qTest Tosca telemetry')">Product Usage</button>
+    </div>
+  </div>
+
+  <button class="browser-toggle" onclick="toggleBrowser()">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="14" height="10" rx="2"/><line x1="1" y1="7" x2="15" y2="7"/></svg>
+    Browse all schemas
+  </button>
+  <div class="schema-browser" id="schemaBrowser"></div>
+
+  <div id="resultsSection" style="display:none">
+    <div class="results-header">
+      <div class="results-title" id="resultsTitle">Results</div>
+      <div class="results-count" id="resultsCount"></div>
+    </div>
+    <div class="results-grid" id="resultsGrid"></div>
+  </div>
+
+  <div id="emptyState">
+    <div class="empty">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">Describe what you're building</div>
+      <div class="empty-sub">Type a metric, use case, or data need above.<br>The finder will map it to the right tables in your data lake.</div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <span>Tricentis Strategic Finance · Data Lake Table Finder</span>
+  <span>350+ tables · Azure SQL Server</span>
+</footer>
+
+<script>
+// ── FULL TABLE CATALOG ────────────────────────────────────────────
+const CATALOG = [
+  // ── ARR ──
+  {schema:'sfdc_trf', table:'sbqq_subscription_live', priority:'primary',
+   tags:['arr','sfdc'],
+   desc:'The core source for all ARR calculations. Each row is one CPQ subscription line. Contains subscription start/end dates, ARR amount, product, account, contract, and currency. This is what the ARR Balance Creation notebook reads from as its primary source.',
+   keyFields:['SBQQ__Account__c','SBQQ__Contract__c','SBQQ__Product__c','ARR__c','SBQQ__SubscriptionStartDate__c','SBQQ__SubscriptionEndDate__c','CurrencyIsoCode','Opportunity_ID__c','IsDeleted'],
+   fields:['Id','Name','CreatedDate','CloseDate__c','SBQQ__ChargeType__c'],
+   sql:`SELECT TOP 100\n  s.Id AS subscription_id,\n  a.UCID__c AS ucid,\n  p.Family AS product_family,\n  s.ARR__c AS arr,\n  s.SBQQ__SubscriptionStartDate__c AS sub_start,\n  s.SBQQ__SubscriptionEndDate__c AS sub_end,\n  s.CurrencyIsoCode\nFROM sfdc_trf.sbqq_subscription_live s\nLEFT JOIN sfdc_trf.account_live a ON s.SBQQ__Account__c = a.Id\nLEFT JOIN sfdc_trf.product_2_live p ON s.SBQQ__Product__c = p.Id\nWHERE s.IsDeleted = 0\n  AND p.SBQQ__ChargeType__c = 'Recurring'`,
+   note:'Used directly in ARR_Balance_Creation notebook. Do not query this alone for ARR totals — the notebook applies significant adjustment logic on top of this raw data.'},
+
+  {schema:'sfdc_trf', table:'contract_live', priority:'primary',
+   tags:['arr','sfdc'],
+   desc:'Contract records linked to subscriptions. Contains contract status, start/end dates, original contract number, and the opportunity link. Critical for the co-term logic and downsell date adjustments in ARR calculations.',
+   keyFields:['Id','ContractNumber','Original_Contract_Number__c','StartDate','EndDate','Status','SBQQ__Opportunity__c'],
+   fields:['CreatedDate'],
+   sql:`SELECT TOP 100\n  c.ContractNumber,\n  c.Original_Contract_Number__c,\n  c.StartDate,\n  c.EndDate,\n  c.Status\nFROM sfdc_trf.contract_live c\nWHERE c.Status != 'Cancelled'`,
+   note:'Cancelled contracts are included in ARR logic when cancellation date > balance date. Join on sfdc_trf.sbqq_subscription_live.SBQQ__Contract__c = contract_live.Id'},
+
+  {schema:'sfdc_trf', table:'contract_history_live', priority:'primary',
+   tags:['arr','sfdc'],
+   desc:'Tracks when contracts were cancelled. Used in ARR logic to find the exact cancellation date — allowing cancelled contracts that were active during the balance period to be included correctly.',
+   keyFields:['ContractId','NewValue','CreatedDate'],
+   fields:['Field','OldValue'],
+   sql:`SELECT TOP 100\n  ContractId,\n  CreatedDate AS cancelled_date\nFROM sfdc_trf.contract_history_live\nWHERE NewValue = 'Cancelled'`,
+   note:'Filter WHERE NewValue = \'Cancelled\' to get cancellation events only.'},
+
+  {schema:'sfdc_trf', table:'opportunity_field_history_live', priority:'primary',
+   tags:['arr','acv','sfdc'],
+   desc:'Field-level history for opportunities. Used in ARR logic to find when an opportunity first reached Closed Won status — giving a more accurate close date than the raw opportunity record.',
+   keyFields:['OpportunityId','Field','NewValue','CreatedDate'],
+   fields:['OldValue'],
+   sql:`SELECT\n  OpportunityId,\n  MIN(CreatedDate) AS first_closed_won_date\nFROM sfdc_trf.opportunity_field_history_live\nWHERE Field = 'StageName'\n  AND LOWER(NewValue) LIKE '%closed won%'\nGROUP BY OpportunityId`,
+   note:'This is how the ARR notebook derives opp_close_date — it finds the first time StageName became Closed Won, not the current CloseDate on the opportunity record.'},
+
+  {schema:'mat', table:'Finance_arr_live', priority:'primary',
+   tags:['arr'],
+   desc:'A pre-computed ARR table maintained by the Finance/MAT team. This is likely the materialized output of the ARR pipeline or a related calculation. Check this first before re-running the notebook — it may already have current month data.',
+   keyFields:['ucid','product_family','live_arr','balance_date'],
+   fields:['committed_arr_364','committed_arr_365+','total_arr'],
+   sql:`SELECT TOP 10\n  *\nFROM mat.Finance_arr_live\nORDER BY balance_date DESC`,
+   note:'Verify this matches arr_balances_master output. If it does, this is the read-optimized version for dashboards.'},
+
+  // ── ACV / BOOKINGS ──
+  {schema:'sfdc_trf', table:'opportunity_live', priority:'primary',
+   tags:['acv','sfdc'],
+   desc:'The core Salesforce opportunity table. Contains every deal — stage, close date, geo, segment, type, ACV-related fields. This is the primary source for ACV bookings data alongside opportunity_nacv_live.',
+   keyFields:['Id','UCID__c','CloseDate','StageName','Type','Geo__c','Segment__c','CurrencyIsoCode'],
+   fields:['Name','AccountId','OwnerId','Amount','ForecastCategory','Incremental_ACV__c','NACV__c'],
+   sql:`SELECT TOP 100\n  o.Id AS opp_id,\n  a.UCID__c AS ucid,\n  o.CloseDate,\n  o.StageName,\n  o.Type,\n  o.Geo__c AS geo,\n  o.CurrencyIsoCode\nFROM sfdc_trf.opportunity_live o\nLEFT JOIN sfdc_trf.account_live a ON o.AccountId = a.Id\nWHERE o.StageName = 'Closed Won'\n  AND o.CloseDate >= '2026-01-01'`,
+   note:'For ACV calculations, join to sfdc_trf.opportunity_nacv_live or sfdc_trf.product_nacv_live for the product-level ACV split.'},
+
+  {schema:'sfdc_trf', table:'opportunity_nacv_live', priority:'primary',
+   tags:['acv','sfdc'],
+   desc:'NACV (Net ACV) values at the opportunity level. This is likely the pre-calculated ACV field used in your bookings model. Contains the converted USD values needed for the ACV tab calculations.',
+   keyFields:['Opportunity_ID__c','NACV__c','Incremental_ACV__c','CurrencyIsoCode'],
+   fields:['NACV_Uplift__c','ACV__c'],
+   sql:`SELECT TOP 100\n  n.Opportunity_ID__c,\n  n.NACV__c AS nacv_usd,\n  n.Incremental_ACV__c AS incremental_acv\nFROM sfdc_trf.opportunity_nacv_live n`,
+   note:'Cross-reference with your Excel bookings model — this should map to the NACV (converted) column in your C-Staff support file.'},
+
+  {schema:'sfdc_trf', table:'product_nacv_live', priority:'primary',
+   tags:['acv','sfdc'],
+   desc:'NACV at the product level — this is what enables the product-by-product ACV breakdown (Tosca, NeoLoad, qTest, etc.) that your ACV Bookings tab requires. Each row is one product on one opportunity.',
+   keyFields:['Opportunity_ID__c','Product_Family__c','NACV__c','Uplift__c','CurrencyIsoCode'],
+   fields:['Product_Name__c','ACV__c'],
+   sql:`SELECT TOP 100\n  p.Opportunity_ID__c,\n  p.Product_Family__c,\n  p.NACV__c AS product_nacv,\n  p.Uplift__c AS cpi_uplift\nFROM sfdc_trf.product_nacv_live p`,
+   note:'This should be the source for the 134-column product breakdown in your C-Staff bookings file. Confirm field names match your Excel model before building the pipeline.'},
+
+  {schema:'sfdc_trf', table:'product_nacv_snapshot_new', priority:'secondary',
+   tags:['acv','sfdc'],
+   desc:'Historical snapshots of product-level NACV. Useful for rebuilding historical ACV data or validating that current live values match prior reported periods.',
+   keyFields:['Opportunity_ID__c','Product_Family__c','snapshot_date','NACV__c'],
+   fields:['Uplift__c'],
+   sql:`SELECT TOP 100 * FROM sfdc_trf.product_nacv_snapshot_new\nORDER BY snapshot_date DESC`,
+   note:'Use for historical validation. Live table is preferred for current reporting.'},
+
+  {schema:'sfdc_trf', table:'opportunity_line_item_live', priority:'primary',
+   tags:['acv','sfdc'],
+   desc:'Opportunity line items — individual products/SKUs on each opportunity. Contains product family, quantity, unit price, and ACV at the line level. Cross-reference with product_nacv_live to ensure consistency.',
+   keyFields:['OpportunityId','Product2Id','Quantity','UnitPrice','TotalPrice','ServiceDate'],
+   fields:['Description','PricebookEntryId'],
+   sql:`SELECT TOP 100\n  oli.OpportunityId,\n  p.Family AS product_family,\n  oli.Quantity,\n  oli.UnitPrice,\n  oli.TotalPrice\nFROM sfdc_trf.opportunity_line_item_live oli\nLEFT JOIN sfdc_trf.product_2_live p ON oli.Product2Id = p.Id`,
+   note:''},
+
+  {schema:'sfdc_trf', table:'account_live', priority:'primary',
+   tags:['acv','arr','sfdc'],
+   desc:'Salesforce account master. Contains UCID, account name, tier, geo, parent account, and segment. The join table that enriches nearly every metric with customer-level dimensions.',
+   keyFields:['Id','UCID__c','Name','Top_Level_Parent_Account_ID__c','Top_Level_Parent_Name__c'],
+   fields:['BillingCountry','Industry','Type','OwnerId'],
+   sql:`SELECT TOP 100\n  a.Id AS account_id,\n  a.UCID__c AS ucid,\n  a.Name AS account_name,\n  a.Top_Level_Parent_Account_ID__c AS parent_id,\n  a.Top_Level_Parent_Name__c AS parent_name\nFROM sfdc_trf.account_live a`,
+   note:'UCID__c is the universal customer ID that links accounts across ARR, ACV, GRR/NRR, and customer metrics. Always join on this field.'},
+
+  {schema:'sfdc_trf', table:'product_2_live', priority:'primary',
+   tags:['acv','arr','lookup'],
+   desc:'Salesforce product master. Contains product name, family, type, and charge type. Used in both ARR and ACV pipelines to classify subscriptions and line items by product family.',
+   keyFields:['Id','Name','Family','Product_Type__c','SBQQ__ChargeType__c'],
+   fields:['Description','IsActive'],
+   sql:`SELECT Id, Name, Family, Product_Type__c\nFROM sfdc_trf.product_2_live\nWHERE IsActive = 1\nORDER BY Family, Name`,
+   note:'Family field maps to your product groupings (Tosca, NeoLoad, qTest, etc.). Product_Type__c distinguishes Subscription vs Maintenance — critical for the negative committed adjustment in ARR logic.'},
+
+  // ── ACV MAPPINGS ──
+  {schema:'csv', table:'Product_Mapping_live', priority:'primary',
+   tags:['acv','lookup'],
+   desc:'The product mapping CSV — maps raw Salesforce product names/families to your standardized reporting product buckets. This is likely what drives the product-level columns (70–133) in your C-Staff bookings file.',
+   keyFields:['Product_Family','Reporting_Product','Product_Group'],
+   fields:['Is_Active'],
+   sql:`SELECT * FROM csv.Product_Mapping_live`,
+   note:'Critical for ACV pipeline. The Python ETL must apply this mapping to standardize product families from raw Salesforce data to your reporting categories.'},
+
+  {schema:'csv', table:'Booking_Team_Mapping_live', priority:'secondary',
+   tags:['acv','lookup'],
+   desc:'Maps Salesforce booking team / account owner fields to your Geo and reporting team dimensions. Required for correct geo attribution in ACV bookings.',
+   keyFields:['Booking_Team','Geo','Region'],
+   fields:['Sub_Region'],
+   sql:`SELECT * FROM csv.Booking_Team_Mapping_live`,
+   note:''},
+
+  {schema:'csv', table:'Stage_Mapping_live', priority:'secondary',
+   tags:['acv','lookup'],
+   desc:'Maps Salesforce opportunity stages to your internal stage categories. Used to filter and classify opportunities in the bookings pipeline.',
+   keyFields:['Stage_Name','Stage_Category','Is_Closed_Won'],
+   fields:[],
+   sql:`SELECT * FROM csv.Stage_Mapping_live`,
+   note:''},
+
+  {schema:'csv', table:'Territory_Mapping_live', priority:'secondary',
+   tags:['acv','lookup'],
+   desc:'Maps sales territories to geo/segment dimensions. Used for geo attribution when the primary Geo field on the opportunity may be ambiguous.',
+   keyFields:['Territory','Geo','Segment'],
+   fields:[],
+   sql:`SELECT * FROM csv.Territory_Mapping_live`,
+   note:''},
+
+  {schema:'sharepoint', table:'Finance_Approved_ACV_Q12026_live', priority:'primary',
+   tags:['acv'],
+   desc:'Finance-approved ACV for Q1 2026 — this is likely the final validated bookings number for Q1. Treat this as the source of truth for Q1 2026 ACV validation against your model output.',
+   keyFields:['UCID','Opp_ID','ACV_Approved','Product_Family','Geo'],
+   fields:['Close_Date','Type'],
+   sql:`SELECT * FROM sharepoint.Finance_Approved_ACV_Q12026_live`,
+   note:'Use this as a validation benchmark. If your pipeline produces different Q1 2026 ACV numbers than this table, investigate before publishing.'},
+
+  {schema:'sharepoint', table:'FinanceOpps_Overwrite_042026_live', priority:'secondary',
+   tags:['acv'],
+   desc:'Finance overrides for April 2026 opportunities. These are manual corrections applied by the FP&A team to adjust ACV values that the automated pipeline calculated incorrectly.',
+   keyFields:['Opp_ID','ACV_Override','Reason'],
+   fields:[],
+   sql:`SELECT * FROM sharepoint.FinanceOpps_Overwrite_042026_live`,
+   note:'Equivalent to the Manual_Adjustments table in the ARR pipeline. Your ACV pipeline needs an override mechanism and this table is likely the source for it.'},
+
+  // ── GRR / NRR ──
+  {schema:'sfdc_trf', table:'sbqq_subscription_live', priority:'primary',
+   tags:['grr'],
+   desc:'Same table as ARR source — GRR/NRR calculations also start here. The UCID-level retention calculations need beginning ARR (prior period) vs ending ARR (current period) by subscription, which comes from this table joined to contract and product data.',
+   keyFields:['SBQQ__Account__c','ARR__c','SBQQ__SubscriptionStartDate__c','SBQQ__SubscriptionEndDate__c','CurrencyIsoCode'],
+   fields:[],
+   sql:`-- Use arr_balances_master (from the ARR notebook output) as\n-- the starting point for GRR/NRR — it already has the\n-- adjusted subscription dates and clean live_arr values.\n-- Query arr_balances_master for two consecutive balance_dates\n-- to compute beginning vs ending ARR per UCID.\nSELECT\n  ucid,\n  product_family,\n  balance_date,\n  live_arr\nFROM arr_balances_master  -- use your Delta table or mat.Finance_arr_live\nWHERE balance_date IN ('2025-05-31','2026-05-31')\nORDER BY ucid, product_family, balance_date`,
+   note:'GRR/NRR should be computed from arr_balances_master output, not from raw subscription data. Your Excel model pastes from "Post May Tricentis Live ARR Details" which is the notebook output.'},
+
+  {schema:'rpt_cx', table:'product_level_renewals', priority:'secondary',
+   tags:['grr'],
+   desc:'Renewals data at the product level from the CX/CS team. Contains renewal rates, ATR, and booked renewal ARR by product. Cross-reference with your GRR calculations for the renewals section of C-Staff reporting.',
+   keyFields:['ucid','product_family','atr','booked_arr','renewal_rate','period'],
+   fields:['geo','tier'],
+   sql:`SELECT TOP 100 * FROM rpt_cx.product_level_renewals\nORDER BY period DESC`,
+   note:''},
+
+  {schema:'rpt_cx', table:'renewals_oli_data_level_historical', priority:'secondary',
+   tags:['grr'],
+   desc:'Historical OLI (Opportunity Line Item) snapshot for renewals. Used for the renewals pipeline view and can supplement GRR calculations with forward-looking renewal data.',
+   keyFields:['ucid','product_family','snapshot_date','arr_at_risk','renewal_arr'],
+   fields:[],
+   sql:`SELECT TOP 100 * FROM rpt_cx.renewals_oli_data_level_historical\nORDER BY snapshot_date DESC`,
+   note:''},
+
+  // ── CUSTOMERS ──
+  {schema:'sfdc_trf', table:'account_live', priority:'primary',
+   tags:['acv','arr','sfdc'],
+   desc:'Account master — customer count starts here. Count distinct UCID__c values by tier, geo, and segment for customer metrics. Join to arr_balances_master to get only customers with active ARR.',
+   keyFields:['UCID__c','Name','Type','BillingCountry'],
+   fields:['Industry','NumberOfEmployees'],
+   sql:`-- Customer count by tier\nSELECT\n  -- Tier logic depends on your tier mapping\n  COUNT(DISTINCT a.UCID__c) AS customer_count\nFROM sfdc_trf.account_live a\nINNER JOIN mat.Finance_arr_live arr\n  ON a.UCID__c = arr.ucid\nWHERE arr.live_arr > 0\n  AND arr.balance_date = '2026-05-31'`,
+   note:'Customer count should always be filtered to accounts with live_arr > 0 at the relevant balance date. Do not count all accounts in account_live — many are prospects or churned customers.'},
+
+  {schema:'gainsight', table:'company_live', priority:'secondary',
+   tags:['grr'],
+   desc:'Gainsight company/account data including health scores, CSM assignments, and product usage flags. Useful for enriching customer metrics with CS health data and tier classifications.',
+   keyFields:['Sfdc_Account_Id','Name','Csm_Name','Health_Score','Arr','Tier'],
+   fields:['Renewal_Date','Products'],
+   sql:`SELECT TOP 100\n  g.Sfdc_Account_Id,\n  g.Name,\n  g.Health_Score,\n  g.Arr,\n  g.Tier\nFROM gainsight.company_live g\nORDER BY g.Arr DESC`,
+   note:''},
+
+  // ── HEADCOUNT ──
+  {schema:'workday_tri', table:'employee_details_for_sales_unit_live', priority:'primary',
+   tags:['hc'],
+   desc:'Workday employee data — your most dynamic headcount source. Contains employee details broken out by sales unit. This is the closest thing to a live HRIS feed you have without connecting directly to Workday payroll.',
+   keyFields:['Employee_ID','Name','Department','Sales_Unit','Status','Start_Date','Termination_Date'],
+   fields:['Job_Title','Manager','Location'],
+   sql:`SELECT\n  Department,\n  COUNT(*) AS headcount\nFROM workday_tri.employee_details_for_sales_unit_live\nWHERE Status = 'Active'\nGROUP BY Department\nORDER BY headcount DESC`,
+   note:'This may be the solution to your headcount automation question. If this table refreshes automatically from Workday, you can replace the monthly HR export entirely. Verify the refresh cadence with your data engineering team.'},
+
+  {schema:'sharepoint', table:'Consulting_RLS_Roaster_live', priority:'secondary',
+   tags:['hc'],
+   desc:'Consulting team roster from SharePoint. Likely a manually maintained headcount list for the Services/PS organization. Supplement workday_tri data with this for the Services function headcount.',
+   keyFields:['Name','Department','Role','Status'],
+   fields:['Manager','Start_Date'],
+   sql:`SELECT * FROM sharepoint.Consulting_RLS_Roaster_live`,
+   note:'Manual SharePoint file — verify how often this is updated before relying on it for automated headcount reporting.'},
+
+  {schema:'jiracloud_tri', table:'gas_employee_live', priority:'secondary',
+   tags:['hc'],
+   desc:'Employee records from Jira/Atlassian GAS (Global Asset System). May contain headcount data used for IT asset tracking — secondary source to cross-validate against Workday data.',
+   keyFields:['Employee_ID','Name','Department','Status'],
+   fields:['Location','Manager'],
+   sql:`SELECT Department, COUNT(*) AS count\nFROM jiracloud_tri.gas_employee_live\nWHERE Status = 'Active'\nGROUP BY Department`,
+   note:''},
+
+  // ── S&M / FINANCE ──
+  {schema:'netsuite', table:'transaction_line_live', priority:'primary',
+   tags:['finance'],
+   desc:'NetSuite transaction line items — this is your P&L source. S&M expense lives here, broken out by department, account code, and subsidiary. This is how you get Sales expense and Marketing expense for the efficiency metrics.',
+   keyFields:['transaction_id','account_id','department_id','amount','net_amount','period'],
+   fields:['subsidiary_id','memo','debit','credit'],
+   sql:`SELECT TOP 100\n  tl.department_id,\n  d.Name AS department,\n  SUM(tl.net_amount) AS total_expense\nFROM netsuite.transaction_line_live tl\nLEFT JOIN netsuite.department_live d ON tl.department_id = d.Id\nWHERE tl.period >= '2026-01-01'\n  AND tl.account_type = 'Expense'\nGROUP BY tl.department_id, d.Name\nORDER BY total_expense DESC`,
+   note:'You will need to identify the specific account codes or department IDs that correspond to Sales and Marketing. The Finance team should have a chart of accounts mapping for this.'},
+
+  {schema:'netsuite', table:'ns_transaction_live', priority:'secondary',
+   tags:['finance'],
+   desc:'NetSuite transaction header records. Join to transaction_line_live for full P&L detail. Contains period, subsidiary, and transaction type needed to filter to the correct reporting period.',
+   keyFields:['Id','TranDate','Period','Subsidiary','Type','Status'],
+   fields:['Memo','Department'],
+   sql:`SELECT TOP 100\n  t.TranDate,\n  t.Period,\n  t.Type,\n  t.Status\nFROM netsuite.ns_transaction_live t\nWHERE t.Period >= '2026-01-01'\nORDER BY t.TranDate DESC`,
+   note:''},
+
+  {schema:'netsuite', table:'department_live', priority:'secondary',
+   tags:['finance','lookup'],
+   desc:'NetSuite department master. Join to transaction lines to map department IDs to department names (Sales, Marketing, R&D, G&A, etc.) for the S&M efficiency and headcount by function views.',
+   keyFields:['Id','Name','FullName','Parent'],
+   fields:['IsInactive'],
+   sql:`SELECT Id, Name, FullName FROM netsuite.department_live\nWHERE IsInactive = 0\nORDER BY FullName`,
+   note:''},
+
+  {schema:'sharepoint', table:'marketing_paid_media_spend_live', priority:'secondary',
+   tags:['finance'],
+   desc:'Marketing paid media spend from SharePoint — digital advertising, paid search, paid social. This is a component of total Marketing expense that may be tracked separately from NetSuite.',
+   keyFields:['Period','Channel','Amount','Campaign'],
+   fields:['Geo'],
+   sql:`SELECT * FROM sharepoint.marketing_paid_media_spend_live\nORDER BY Period DESC`,
+   note:''},
+
+  // ── FX / LOOKUPS ──
+  {schema:'sfdc_trf', table:'dated_conversion_rate_live', priority:'primary',
+   tags:['lookup','arr','acv'],
+   desc:'Dated currency conversion rates from Salesforce. Contains monthly FX rates by currency pair — this is the source for the FX Rates lookup sheet in your C-Staff Excel file. Use this to convert native-currency ACV and ARR to USD.',
+   keyFields:['IsoCode','ConversionRate','StartDate','NextStartDate'],
+   fields:['DecimalPlaces'],
+   sql:`SELECT\n  IsoCode,\n  ConversionRate,\n  StartDate,\n  NextStartDate\nFROM sfdc_trf.dated_conversion_rate_live\nORDER BY IsoCode, StartDate DESC`,
+   note:'Verify this matches the FX rates in your Excel FX Rates sheet. The two should be identical — if not, investigate which source your ARR notebook uses (it uses the subscription CurrencyIsoCode directly from the row).'},
+
+  {schema:'sharepoint', table:'Map_Product_Hierarchy_live', priority:'primary',
+   tags:['lookup','acv','arr'],
+   desc:'Product hierarchy mapping — maps product IDs or names to your reporting product families and groups. Critical for ensuring the pipeline uses the same product categorization as your current Excel model.',
+   keyFields:['Product_ID','Product_Name','Product_Family','Product_Group','Reporting_Name'],
+   fields:['Is_Active','Sort_Order'],
+   sql:`SELECT * FROM sharepoint.Map_Product_Hierarchy_live\nORDER BY Product_Family, Reporting_Name`,
+   note:''},
+
+  {schema:'sharepoint', table:'Map_Source_live', priority:'secondary',
+   tags:['lookup','acv'],
+   desc:'Maps opportunity source fields to your reporting source categories (Direct, Partner, Solex). Required for the "ACV by Geo and Source" section of your ACV tab.',
+   keyFields:['SFDC_Source','Reporting_Source','Channel'],
+   fields:[],
+   sql:`SELECT * FROM sharepoint.Map_Source_live`,
+   note:''},
+
+  // ── PRODUCT USAGE ──
+  {schema:'neo_product', table:'consumption_live', priority:'secondary',
+   tags:[],
+   desc:'NeoLoad product consumption/usage data. Useful for product adoption metrics and can support the GRR/NRR analysis by identifying low-usage customers at risk of churn.',
+   keyFields:['ucid','account_id','period','consumption_value','metric_type'],
+   fields:[],
+   sql:`SELECT TOP 100 * FROM neo_product.consumption_live\nORDER BY period DESC`,
+   note:''},
+
+  {schema:'qtest_tri', table:'v_stat_clients_live', priority:'secondary',
+   tags:[],
+   desc:'qTest client/account usage statistics. Tracks active users, projects, and usage metrics per account. Useful for product health scoring.',
+   keyFields:['client_id','account_name','active_users','projects'],
+   fields:[],
+   sql:`SELECT TOP 100 * FROM qtest_tri.v_stat_clients_live`,
+   note:''},
+];
+
+// ── SEARCH KEYWORDS MAP ───────────────────────────────────────────
+const KEYWORDS = {
+  arr:   ['arr','annual recurring revenue','recurring','subscription','balance','live arr','committed','pipeline arr','sealights arr'],
+  acv:   ['acv','bookings','booking','nacv','incremental acv','closed won','revenue','deals','opportunities','opp','quota'],
+  grr:   ['grr','nrr','retention','churn','gross retention','net retention','renewal','renew','ucid level'],
+  sfdc:  ['salesforce','sfdc','crm','opportunity','account','contact','contract'],
+  hc:    ['headcount','employee','employees','hc','staff','workforce','workday','hris','people','hr','hiring','attrition'],
+  finance:['expense','spend','p&l','s&m','sales marketing','cost','netsuite','erp','marketing spend'],
+  lookup:['mapping','lookup','fx','currency','exchange rate','product mapping','territory','source mapping'],
+};
+
+function getScore(item, query) {
+  const q = query.toLowerCase();
+  let score = 0;
+  const words = q.split(/\s+/).filter(w => w.length > 2);
+
+  // Table name match
+  if ((item.schema + '_' + item.table).toLowerCase().includes(q)) score += 30;
+  words.forEach(w => {
+    if (item.table.toLowerCase().includes(w)) score += 15;
+    if (item.schema.toLowerCase().includes(w)) score += 5;
+    if (item.desc.toLowerCase().includes(w)) score += 8;
+    if (item.keyFields.some(f => f.toLowerCase().includes(w))) score += 6;
+  });
+
+  // Tag matching
+  Object.entries(KEYWORDS).forEach(([tag, kws]) => {
+    if (item.tags.includes(tag)) {
+      kws.forEach(kw => {
+        if (q.includes(kw)) score += 20;
+        words.forEach(w => { if (kw.includes(w) || w.includes(kw.split(' ')[0])) score += 10; });
+      });
+    }
+  });
+
+  // Priority boost
+  if (item.priority === 'primary') score *= 1.3;
+  return score;
+}
+
+// ── SEARCH ───────────────────────────────────────────────────────
+let openCards = {};
+function quickSearch(q) {
+  document.getElementById('searchInput').value = q;
+  doSearch();
+}
+
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+
+  const btn = document.getElementById('searchBtn');
+  btn.classList.add('loading');
+  btn.querySelector('svg').outerHTML = '<svg id="si" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M13.5 3A7 7 0 1 0 14 8"/><polyline points="14 1 14 5 10 5"/></svg>';
+
+  setTimeout(() => {
+    const scored = CATALOG
+      .map(item => ({ ...item, score: getScore(item, q) }))
+      .filter(item => item.score > 5)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12);
+
+    renderResults(scored, q);
+    btn.classList.remove('loading');
+    btn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>Find tables';
+  }, 400);
+}
+
+function renderResults(results, q) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsSection').style.display = 'block';
+  document.getElementById('resultsTitle').textContent = `Tables for: "${q}"`;
+  document.getElementById('resultsCount').textContent = results.length
+    ? `${results.length} table${results.length > 1 ? 's' : ''} found — sorted by relevance`
+    : 'No matches';
+
+  const grid = document.getElementById('resultsGrid');
+  if (!results.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">No tables matched that query</div><div class="empty-sub">Try different keywords or browse all schemas below</div></div>';
+    return;
+  }
+
+  grid.innerHTML = results.map((item, idx) => {
+    const tagHtml = item.tags.map(t => `<span class="rc-tag tag-${t}">${t.toUpperCase()}</span>`).join('');
+    const keyFieldsHtml = item.keyFields.map((f, i) => `<span class="fchip key">${f}</span>`).join('');
+    const otherFieldsHtml = item.fields.map(f => `<span class="fchip">${f}</span>`).join('');
+    const noteHtml = item.note ? `<div class="rc-note"><b>Note:</b> ${item.note}</div>` : '';
+    const cardId = `rc-${idx}`;
+
+    return `
+    <div class="result-card ${item.priority}" id="${cardId}">
+      <div class="rc-head" onclick="toggleCard('${cardId}')">
+        <div class="rc-priority">${item.priority === 'primary' ? '★' : item.priority === 'secondary' ? '◎' : '·'}</div>
+        <div>
+          <div class="rc-table">${item.table}</div>
+          <div class="rc-schema">${item.schema}</div>
+        </div>
+        <div class="rc-tags">${tagHtml}</div>
+      </div>
+      <div class="rc-body" id="body-${cardId}">
+        <div class="rc-desc">${item.desc}</div>
+        ${item.keyFields.length ? `<div class="rc-fields"><div class="rc-fields-title">Key fields</div><div class="field-chips">${keyFieldsHtml}</div></div>` : ''}
+        ${item.fields.length ? `<div class="rc-fields" style="margin-top:8px"><div class="rc-fields-title">Other fields</div><div class="field-chips">${otherFieldsHtml}</div></div>` : ''}
+        <div style="margin-top:12px">
+          <div class="rc-sql-title">Starter SQL</div>
+          <div class="rc-sql" id="sql-${cardId}"><button class="copy-btn" onclick="copySql('sql-${cardId}')">Copy</button>${escHtml(item.sql)}</div>
+        </div>
+        ${noteHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCard(id) {
+  const body = document.getElementById('body-' + id);
+  body.classList.toggle('open');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copySql(id) {
+  const el = document.getElementById(id);
+  const text = el.innerText.replace('Copy','').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = el.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+// ── SCHEMA BROWSER ───────────────────────────────────────────────
+const ALL_TABLES = [
+  {s:'sfdc_trf',tables:['sbqq_subscription_live','contract_live','contract_history_live','account_live','opportunity_live','opportunity_nacv_live','product_nacv_live','product_2_live','opportunity_field_history_live','opportunity_line_item_live','dated_conversion_rate_live','opportunity_history_live','opportunity_snapshot_new','users_live']},
+  {s:'mat',tables:['Finance_arr_live','ZouraQuotesDetail','dsp_connection']},
+  {s:'netsuite',tables:['transaction_line_live','ns_transaction_live','department_live','account_live','employee_live','subsidiary_live','revenue_element_live','currency_live']},
+  {s:'sharepoint',tables:['Finance_Approved_ACV_Q12026_live','FinanceOpps_Overwrite_042026_live','Map_Product_Hierarchy_live','Map_Source_live','marketing_paid_media_spend_live','Consulting_RLS_Roaster_live','Target_Monthly_live','Map_Territory_live']},
+  {s:'csv',tables:['Product_Mapping_live','Booking_Team_Mapping_live','Stage_Mapping_live','Territory_Mapping_live']},
+  {s:'workday_tri',tables:['employee_details_for_sales_unit_live']},
+  {s:'gainsight',tables:['company_live','company_snapshot_new','scorecard_measures_live']},
+  {s:'rpt_cx',tables:['product_level_renewals','renewals_oli_data_level_historical','trf_opp_renewals_dash']},
+  {s:'neo_product',tables:['consumption_live','activeusers_nlweb_login_live','max_vu_customer_details_live']},
+  {s:'qtest_tri',tables:['v_stat_clients_live','v_stat_users_live','v_stat_projects_live']},
+  {s:'clari_tri',tables:['main_forecast_live','services_forecast_live']},
+  {s:'jiracloud_tri',tables:['gas_employee_live','gas_groups_live']},
+];
+
+function toggleBrowser() {
+  const b = document.getElementById('schemaBrowser');
+  b.classList.toggle('open');
+  if (b.classList.contains('open') && !b.innerHTML) buildBrowser();
+}
+
+function buildBrowser() {
+  const b = document.getElementById('schemaBrowser');
+  b.innerHTML = '<div class="schema-grid">' +
+    ALL_TABLES.map(g => `
+      <div class="schema-group">
+        <div class="sg-name">${g.s}</div>
+        ${g.tables.map(t => `<div class="sg-table" onclick="quickSearch('${t.replace(/_live$/,'').replace(/_/g,' ')}')">${t}</div>`).join('')}
+        <div class="sg-count">${g.tables.length} key tables shown</div>
+      </div>`).join('') +
+  '</div>';
+}
+</script>
+</body>
+</html>
