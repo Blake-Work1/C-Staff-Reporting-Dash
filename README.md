@@ -1,7 +1,7 @@
 # Tricentis FP&A Reporting Modernization
 
 **Owner:** Strategic Finance — Blake Buckley  
-**Live dashboard:** *(link once deployed to Azure Static Web Apps)*  
+**Live dashboard:** https://blake-work1.github.io/C-Staff-Reporting-Dash/
 **Last updated:** June 2026 · v1
 
 ---
